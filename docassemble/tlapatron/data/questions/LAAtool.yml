@@ -1,8 +1,73 @@
-mandatory: true
-question: |
-  Hello, ${ name }.
+#Assignment 2 - Docassemble Basics
+
+#Using the "objects" initial block, modify your interview to use an “Individual” object to represent the user, and a DAList to rerpesent a list of other Individuals with whom the user lives.
+
+#Using the “generic object modifier”, create a single question block in your interview file that asks for names of people.
+
+#Add screens to your interview that request information with different interfaces:
+
+#A Yes/No question using the “yesno” modifier
+
+#A multiple-choice field that allows the user to select more than one option.
+
+#A multiple-choice field that allows the user to select only one option.
+
+#A signature.
+
+objects:
+  - user: Individual
+  - roommate: DAList.using(object_type=Individual)
 ---
-question: What is your name?
+generic object: Individual
+question: Please write down the name.
 fields:
-  - Name: name
+  - First Name: x.name.first
+  - Last Name: x.name.last
+---
+question: Do you have any roommates?
+yesno: roommate.there_are_any
+---
+question: Do you have any other roommates?
+yesno: roommate.there_is_another
+---
+question: Do you like hockey?
+yesno: user.likeshockey
+---
+question: Do you know these hockey players?
+fields:
+  - Connor McDavid: user.knowsMcDavid
+    datatype: yesnowide
+  - Wayne Gretzky: user.knowsGretzky
+    datatype: yesnowide
+  - Mario Lemieux: user.knowsLemieux
+    datatype: yesnowide
+---
+question: What is your favorite sport?
+field: user.favoritesport
+choices:
+  - Hockey
+  - Golf
+  - Basketball
+  - Baseball
+  - Other
+---
+question: Sign here.
+signature: user.signhere
+---
+mandatory: true 
+question: |
+  Hello, ${ user }.
+subquestion: |
+  Your roommates are: ${ roommate }
+
+  Do you like hockey? ${ user.likeshockey }
   
+  Do you know Connor McDavid? ${ user.knowsMcDavid }
+  
+  Do you know Wayne Gretzky? ${ user.knowsGretzky }
+  
+  Do you know Mario Lemieux? ${ user.knowsLemieux }
+  
+  What is your favorite sport? ${ user.favoritesport }
+  
+  What is your signature? ${ user.signhere }
