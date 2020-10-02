@@ -1,6 +1,38 @@
+mandatory: True
+code: |
+
+  family_asked = True
+  criminal_asked = True
+  matterinAB_asked = True
+  userinAB_asked = True
+  canafford_asked = True
+  stillacting_asked = True
+
+  if (user_matter_appeal_LAA):
+    user_matter_family = False
+    family_asked = False
+    
+    user_matter_criminal = False
+    criminal_asked = False
+    
+    user_matter_in_AB = False
+    matterinAB_asked = False
+    
+    user_lives_in_AB = False
+    userinAB_asked = False
+ 
+  
+  if (user_has_lawyer == False):
+    user_lawyer_still_acting = False
+    stillacting_asked = False
+  
+  if user_canafford_lawyer:
+    user_lawyer_still_acting = False
+    stillacting_asked = False
+    
+---
 objects:
   - user: Individual
-  - family_members: DAList.using(object_type=Individual)
 ---
 mandatory: True 
 question: Results
@@ -13,35 +45,78 @@ attachments:
         Dear ${user},
         
         Congratulations you qualify for legal aid!
-        For reference, today's date is: ${ format_date(today_date, format='EEEE, MMMM d, yyyy')} or ${ format_date(today_date, format="yyyy-MM-dd") }. 
-        
-        %if len(family_members) > 0:
-        Your family members are: ${ family_members }.
-        %endif
-        
-        Sincerely,
-        
-        Jonas
-        
+                
       %else:
       
         Dear ${user},
       
         I am sorry to inform you that you do not qualify for legal aid.
-        For reference, today's date is: ${ format_date(today_date, format='EEEE, MMMM d, yyyy')} or ${ format_date(today_date, format="yyyy-MM-dd") }.
         
-        %if len(family_members) > 0:
-        Your family members are: ${ family_members }.
-        %endif
+      %endif
       
+        For reference,     
+        %if user_has_lawyer:
+          You have a lawyer.
+        %else:
+          You don't have a lawyer.
+        %endif    
+        %if user_canafford_lawyer:
+          You can afford a lawyer.
+        %elif canafford_asked:
+          You can't afford a lawyer.
+        %endif     
+        %if user_lawyer_still_acting:
+          Your lawyer is still acting for you.
+        %elif stillacting_asked:
+          Your lawyer is no longer acting for you.
+        %endif    
+        %if user_matter_in_AB:
+          Your matter is in Alberta.
+        %elif matterinAB_asked:
+          Your matter is not in Alberta.
+        %endif  
+        %if user_matter_family:
+          Your matter is a family matter.
+        %elif user_matter_criminal:
+          Your matter is a criminal matter.
+        %elif family_asked:
+          Your matter is neither family nor criminal.
+        %endif      
+        %if user_lives_in_AB:
+          You live in Alberta.
+        %elif userinAB_asked:
+          You do not live in Alberta. 
+        %endif     
+        %if user_matter_appeal_LAA:
+          Your matter is one which is an appeal of a previous LAA matter.
+        %else:
+          Your matter is not one which is an appeal of a previous LAA matter.
+        %endif
+         
         Sincerely,
         
         Jonas
-      
-      %endif
-      
-      
- 
+---
+code: |
+  if ((user_has_lawyer == False) and (user_canafford_lawyer == False)) or ((user_lawyer_still_acting == False) and (user_canafford_lawyer == False)):
+    
+    user_represented = False
+    
+  else:
+  
+    user_represented = True
+---
+code: |
+  if (user_matter_in_AB and user_lives_in_AB) or user_matter_appeal_LAA:
+    user_residency = True
+  else:
+    user_residency = False
+---
+code: |
+  if (user_represented == False and user_residency):
+    user.qualifies = True
+  else:
+    user.qualifies = False
 ---
 generic object: Individual
 question: Please write down ${x.object_possessive('name')}.
@@ -49,19 +124,26 @@ fields:
   - First Name: x.name.first
   - Last Name: x.name.last
 ---
-question: What is your name?
+question: Do you have a lawyer?
+yesno: user_has_lawyer
 ---
-question: Do you have any family members?
-yesno: family_members.there_are_any
+question: Can you afford a lawyer?
+yesno: user_canafford_lawyer
 ---
-question: Do you have any other family members?
-yesno: family_members.there_is_another
+question: Does your lawyer still represent you?
+yesno: user_lawyer_still_acting
 ---
-question: Do you qualify for legal aid?
-yesno: user.qualifies
+question: Is your legal matter located in Alberta?
+yesno: user_matter_in_AB
 ---
-question: |
-  Please enter today's date.
-fields:
-  - Date: today_date
-    datatype: date
+question: Is your matter a family law matter?
+yesno: user_matter_family
+---
+question: Is your matter a criminal law matter?
+yesno: user_matter_criminal
+---
+question: Do you live in Alberta?
+yesno: user_lives_in_AB
+---
+question: Is your matter an appeal of a matter for which you received LAA assistance?
+yesno: user_matter_appeal_LAA
