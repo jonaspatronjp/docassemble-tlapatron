@@ -1,38 +1,32 @@
+objects:
+  - user: Individual
+  - family_members: DAList.using(object_type=Individual, complete_attribute="assets")
+---
 mandatory: True
 code: |
 
-  family_asked = True
-  criminal_asked = True
-  matterinAB_asked = True
-  userinAB_asked = True
-  canafford_asked = True
-  stillacting_asked = True
-
+  user
+  user.assets
+  
   if (user_matter_appeal_LAA):
     user_matter_family = False
-    family_asked = False
-    
     user_matter_criminal = False
-    criminal_asked = False
-    
     user_matter_in_AB = False
-    matterinAB_asked = False
-    
     user_lives_in_AB = False
-    userinAB_asked = False
  
   
   if (user_has_lawyer == False):
     user_lawyer_still_acting = False
-    stillacting_asked = False
   
   if user_canafford_lawyer:
     user_lawyer_still_acting = False
-    stillacting_asked = False
     
 ---
-objects:
-  - user: Individual
+question: Do you have any family members?
+yesno: family_members.there_are_any
+---
+question: Do you have any other family members?
+yesno: family_members.there_is_another
 ---
 mandatory: True 
 question: Results
@@ -41,57 +35,70 @@ attachments:
     filename: document
     content: |
       
-      %if user.qualifies == True:
-        Dear ${user},
-        
-        Congratulations you qualify for legal aid!
-                
+      Dear ${user},
+      
+      Your family members are: ${family_members}
+      
+      %if (user.qualifies and eligible):  
+        Congratulations you are eligible and qualify for legal aid!    
+      
+      %elif (user.qualifies and marginally_eligible):
+        Congratulations you are marginally eligible and qualify for legal aid!       
       %else:
-      
-        Dear ${user},
-      
-        I am sorry to inform you that you do not qualify for legal aid.
-        
+        I am sorry to inform you that you are not eligible and do not qualify for legal aid.
       %endif
       
-        For reference,     
-        %if user_has_lawyer:
-          You have a lawyer.
-        %else:
-          You don't have a lawyer.
-        %endif    
-        %if user_canafford_lawyer:
-          You can afford a lawyer.
-        %elif canafford_asked:
-          You can't afford a lawyer.
-        %endif     
-        %if user_lawyer_still_acting:
-          Your lawyer is still acting for you.
-        %elif stillacting_asked:
-          Your lawyer is no longer acting for you.
-        %endif    
-        %if user_matter_in_AB:
-          Your matter is in Alberta.
-        %elif matterinAB_asked:
-          Your matter is not in Alberta.
-        %endif  
-        %if user_matter_family:
-          Your matter is a family matter.
-        %elif user_matter_criminal:
-          Your matter is a criminal matter.
-        %elif family_asked:
-          Your matter is neither family nor criminal.
-        %endif      
-        %if user_lives_in_AB:
-          You live in Alberta.
-        %elif userinAB_asked:
-          You do not live in Alberta. 
-        %endif     
+        For reference,
+        
         %if user_matter_appeal_LAA:
           Your matter is one which is an appeal of a previous LAA matter.
         %else:
           Your matter is not one which is an appeal of a previous LAA matter.
+        %if user_matter_family:
+          Your matter is a family matter.
+        %elif user_matter_criminal:
+          Your matter is a criminal matter.
+        %else:
+          Your matter is neither a family nor criminal matter.
         %endif
+        %if user_matter_in_AB:
+          Your matter is in Alberta.
+        %else:
+          Your matter is not in Alberta.
+        %endif
+        %if user_lives_in_AB:
+          You live in Alberta.
+        %else:
+          You do not live in Alberta.
+        %endif
+        %endif
+           
+        %if (user_has_lawyer or user_canafford_lawyer):
+        %if user_has_lawyer:
+          You have a lawyer.
+        %if user_lawyer_still_acting:
+          Your lawyer is still acting for you.
+        %else:
+          Your lawyer is no longer acting for you.
+        %endif
+        %else:
+          You don't have a lawyer.
+        %endif
+        %if user_cannafford_lawyer:
+          You can afford a lawyer.
+        %else:
+          You cannot afford a lawyer.
+        %endif
+        %endif    
+        
+        Your assets are ${user.assets}, your income in the past 30 days was ${user.monthincome}, and your income in the past year was ${user.yearincome}.
+                
+        %for j in family_members:
+        ${j} has ${j.assets} in assets, ${j.monthincome} in income in the past 30 days, and ${j.yearincome} in the past year.
+        %endfor
+        
+        Your total monthly income was ${total_income_month}.
+        Your total yearly income was ${total_income_year}.
          
         Sincerely,
         
@@ -113,7 +120,35 @@ code: |
     user_residency = False
 ---
 code: |
-  if (user_represented == False and user_residency):
+  total_income_month = user.monthincome
+  for j in family_members:
+    total_income_month += j.monthincome
+---
+code: |
+  total_income_year = user.yearincome  
+  for j in family_members:
+    total_income_year += j.yearincome   
+---
+code: |
+  family_size = len(family_members)
+  if family_size > 6:
+    family_size = 6
+  eligible = False
+  marginally_eligible = False
+  ineligible = False
+  maximum_income_month = [1668, 2066, 2940, 3178, 3416, 3655]
+  maximum_income_year = [20021, 24788, 35275, 38134, 40995, 43855]
+ 
+  if ((total_income_month <= maximum_income_month[family_size]) and (total_income_year <= maximum_income_year[family_size])):
+    eligible = True
+  elif ((total_income_month <= maximum_income_month[family_size]*1.1) and (total_income_year <= maximum_income_year[family_size]*1.1)):
+    marginally_eligible = True
+  else:
+    ineligible = True
+      
+---
+code: |
+  if (user_represented == False and user_residency and (eligible or marginally_eligible)):
     user.qualifies = True
   else:
     user.qualifies = False
@@ -147,3 +182,23 @@ yesno: user_lives_in_AB
 ---
 question: Is your matter an appeal of a matter for which you received LAA assistance?
 yesno: user_matter_appeal_LAA
+---
+question: |
+  Please enter the following information for ${family_members[i]}?
+fields:
+  - How much in assets do they own?: family_members[i].assets
+    datatype: currency
+  - What was their income in the last 30 days?: family_members[i].monthincome
+    datatype: currency
+  - What was their income in the last year?: family_members[i].yearincome
+    datatype: currency
+---
+question: |
+  Please enter the following information for ${user}?
+fields:
+  - How much in assets do you own?: user.assets
+    datatype: currency
+  - What was your income in the last 30 days?: user.monthincome
+    datatype: currency
+  - What was your income in the last year?: user.yearincome
+    datatype: currency
