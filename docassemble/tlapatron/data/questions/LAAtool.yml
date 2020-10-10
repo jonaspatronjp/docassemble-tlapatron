@@ -8,18 +8,15 @@ code: |
   user
   user.assets
   
-  if (user_matter_appeal_LAA):
-    user_matter_family = False
-    user_matter_criminal = False
-    user_matter_in_AB = False
-    user_lives_in_AB = False
+  if (user_matter_appeal_LAA == False):
+    user_matter_family
+    user_matter_criminal
+    user_matter_in_AB
+    user_lives_in_AB
  
   
-  if (user_has_lawyer == False):
-    user_lawyer_still_acting = False
-  
-  if user_canafford_lawyer:
-    user_lawyer_still_acting = False
+  if (user_has_lawyer or user_canafford_lawyer):
+    user_lawyer_still_acting
     
 ---
 question: Do you have any family members?
