@@ -1,3 +1,13 @@
+default role: client
+code: |
+  # This will run every screen.
+  multi_user = True  # Means turn off the security encryption features
+  reviewer_email = "jmorris@ualberta.ca"
+  role = "client"
+  if user_logged_in() and user_info().email == reviewer_email:
+    role = "reviewer"
+  set_info(user=user, role=role)
+---
 objects:
   - user: Individual
   - family_members: DAList.using(object_type=Individual, complete_attribute="assets")
@@ -18,6 +28,12 @@ code: |
   if (user_has_lawyer or user_canafford_lawyer):
     user_lawyer_still_acting
     
+  family_members.there_are_any
+  
+  request_notification_sent
+  reviewer_response
+  response_notification_sent
+    
 ---
 question: Do you have any family members?
 yesno: family_members.there_are_any
@@ -25,25 +41,57 @@ yesno: family_members.there_are_any
 question: Do you have any other family members?
 yesno: family_members.there_is_another
 ---
-mandatory: True 
-question: Results
+code: |
+  request_notification_sent = send_email(to=reviewer_email, template=request_notification)
+---
+code: |
+  response_notification_sent = send_email(to="jonaspatron1@gmail.com", template=response_notification)
+---
+template: request_notification
+subject: LAW589 Assignment 6 - Jonas Patron
+content: |
+  ${ user } has requested something, [click here](${ interview_url() }) to respond.
+---
+template: response_notification
+subject: Response Recieved
+content: |
+  Your reviewer has provided an answer, [click here](${ interview_url() }) to view it.
+---
+event: role_event
+question: Waiting on another user
+subquestion: |
+  You are not authorized to look at the next screen of this interview.
+  
+  %if "client" in role_needed:
+  We are waiting for the client, and you are a reviewer.
+  %elif "reviewer" in role_needed:
+  We are waiting for the reviewer, and you are the client.
+  %endif
+  
+  Please have the other party go to [this link](${ interview_url() }) to continue.
+  
+buttons:
+  - Check: refresh
+---
+role: reviewer
+question: Response
+subquestion: |
+  See attached document with what the client said.
+  Do you approve of their application?
+
+  ${Legal_aid_document}
+  
+yesno: reviewer_response
+---
 attachments:
   - name: Document
     filename: document
-    content: |
-      
+    variable name: Legal_aid_document
+    content: |    
+
       Dear ${user},
       
       Your family members are: ${family_members}
-      
-      %if (user.qualifies and eligible):  
-        Congratulations you are eligible and qualify for legal aid!    
-      
-      %elif (user.qualifies and marginally_eligible):
-        Congratulations you are marginally eligible and qualify for legal aid!       
-      %else:
-        I am sorry to inform you that you are not eligible and do not qualify for legal aid.
-      %endif
       
         For reference,
         
@@ -100,6 +148,18 @@ attachments:
         Sincerely,
         
         Jonas
+
+---
+mandatory: True
+question: |
+  The reviewer
+  % if reviewer_response:
+  approved your application. You may [download the document](${ Legal_aid_document.url_for() }).
+  
+  ${ Legal_aid_document }
+  % else:
+  did not approve your application.
+  % endif
 ---
 code: |
   if ((user_has_lawyer == False) and (user_canafford_lawyer == False)) or ((user_lawyer_still_acting == False) and (user_canafford_lawyer == False)):
